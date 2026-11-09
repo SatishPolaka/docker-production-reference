@@ -1,0 +1,21 @@
+services:
+  web:
+    image: nginx:stable                       # Replace with your reviewed application image
+    ports:
+      - target: 80                             # Port inside the container
+        published: 8080                       # Port published by the Swarm service
+        protocol: tcp
+        mode: ingress
+    deploy:
+      replicas: 3                              # Desired number of service tasks
+      update_config:
+        parallelism: 1                         # Update one task at a time
+        delay: 10s                             # Pause between task updates
+        order: start-first                     # Start replacement before stopping old task
+      restart_policy:
+        condition: on-failure                  # Restart tasks when they fail
+    networks:
+      - app-net
+networks:
+  app-net:
+    driver: overlay                            # Network shared across Swarm nodes
