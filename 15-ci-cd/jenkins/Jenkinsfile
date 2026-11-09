@@ -1,0 +1,44 @@
+pipeline {                                                   // Declarative Jenkins pipeline
+    agent { label 'docker' }                                 // Agent with Docker and Trivy installed
+    environment {
+        IMAGE = 'registry.example.com/team/sample-app'      // Replace with your registry repository
+    }
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm                                 // Check out the source revision
+            }
+        }
+        stage('Test') {
+            steps {
+                sh './run-tests.sh'                          // Replace with the application's test command
+            }
+        }
+        stage('Build image') {
+            steps {
+                script {
+                    env.TAG = sh(script: 'git rev-parse --short=12 HEAD', returnStdout: true).trim() // Commit tag
+                }
+                sh 'docker build --pull -t "$IMAGE:$TAG" .' // Build image from repository Dockerfile
+            }
+        }
+        stage('Scan image') {
+            steps {
+                sh 'trivy image --exit-code 1 --severity HIGH,CRITICAL "$IMAGE:$TAG"' // Apply scan policy
+            }
+        }
+        stage('Push image') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'registry-credentials',
+                    usernameVariable: 'REG_USER', passwordVariable: 'REG_PASS')]) {
+                    sh '''
+                        set +x
+                        printf '%s' "$REG_PASS" | docker login registry.example.com -u "$REG_USER" --password-stdin
+                        docker push "$IMAGE:$TAG"
+                        docker logout registry.example.com
+                    '''                                      // Do not echo registry credentials
+                }
+            }
+        }
+    }
+}
