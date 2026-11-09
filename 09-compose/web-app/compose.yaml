@@ -1,0 +1,29 @@
+services:
+  web:
+    image: nginx:stable                       # Example web service image
+    ports:
+      - "127.0.0.1:8088:80"                   # Publish only on the local host
+    volumes:
+      - ./html:/usr/share/nginx/html:ro       # Mount local static content read-only
+    depends_on:
+      api:
+        condition: service_healthy            # Wait for API health check before starting web
+    networks:
+      - frontend
+
+  api:
+    image: hashicorp/http-echo:1.0.0          # Small example HTTP service
+    command: ["-text=API is available"]
+    healthcheck:
+      test: ["CMD", "/http-echo", "-version"] # Demonstration process check; replace with real health endpoint
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    networks:
+      - frontend
+      - backend
+
+networks:
+  frontend:                                   # Network shared by web and API
+  backend:                                    # Isolated backend network
+    internal: true
